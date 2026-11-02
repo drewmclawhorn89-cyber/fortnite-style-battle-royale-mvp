@@ -1,0 +1,22 @@
+{
+  "name": "fortnite-style-battle-royale-mvp",
+  "version": "1.0.0",
+  "description": "Fortnite-style battle royale MVP built with Three.js, Cannon-es, Express, and Socket.io",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "game",
+    "battle-royale",
+    "threejs",
+    "socketio",
+    "multiplayer"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.8.1"
+  }
+}

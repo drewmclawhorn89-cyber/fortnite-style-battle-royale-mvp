@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fortnite-style Battle Royale MVP</title>
+    <style>
+      :root {
+        --bg: #06142a;
+        --panel: rgba(13, 21, 30, 0.75);
+        --accent: #50d7ff;
+        --green: #75ff85;
+        --yellow: #ffd25f;
+        --red: #ff5d5d;
+        --purple: #d690ff;
+        --text: #ecf6ff;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: var(--bg);
+        font-family: Arial, sans-serif;
+        color: var(--text);
+      }
+
+      #game-root {
+        position: fixed;
+        inset: 0;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      #hud {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+      }
+
+      #top-bar {
+        position: absolute;
+        top: 18px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(820px, 70vw);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 18px;
+      }
+
+      #stats {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        background: rgba(12, 18, 27, 0.6);
+        border: 1px solid rgba(255,255,255,0.13);
+        border-radius: 12px;
+        padding: 12px 18px;
+        backdrop-filter: blur(2px);
+      }
+
+      .bar-wrap {
+        width: 170px;
+        position: relative;
+      }
+
+      .bar-label {
+        display: flex;
+        justify-content: space-between;
+        font-size: 11px;
+        margin-bottom: 5px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .bar {
+        height: 18px;
+        border-radius: 9px;
+        background: rgba(255,255,255,0.18);
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.16);
+      }
+
+      .bar-fill {
+        height: 100%;
+        width: 100%;
+        transition: width 0.1s ease;
+      }
+
+      #hp .bar-fill { background: linear-gradient(90deg, #57e185, #8cf5aa); }
+      #shield .bar-fill { background: linear-gradient(90deg, #4bb1ff, #9ad6ff); }
+
+      #action-panel {
+        position: absolute;
+        right: 24px;
+        top: 24px;
+        width: 210px;
+        padding: 12px 14px;
+        background: rgba(13, 18, 30, 0.7);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 14px;
+      }
+
+      .panel-header {
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        color: #a4c6e6;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+      }
+
+      #materials {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .material-item {
+        background: rgba(255,255,255,0.05);
+        border-radius: 10px;
+        padding: 8px 6px;
+        text-align: center;
+        font-size: 12px;
+      }
+
+      .material-item strong {
+        display: block;
+        font-size: 16px;
+      }
+
+      .material-item:nth-child(1) strong { color: #d9b959; }
+      .material-item:nth-child(2) strong { color: #6cd9ff; }
+      .material-item:nth-child(3) strong { color: #c4d0e0; }
+
+      #inventory {
+        position: absolute;
+        left: 50%;
+        bottom: 24px;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 10px;
+        background: rgba(10, 17, 26, 0.75);
+        border: 1px solid rgba(255,255,255,0.17);
+        border-radius: 16px;
+        padding: 10px 14px;
+      }
+
+      .slot {
+        width: 92px;
+        height: 52px;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.12);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 12px;
+        position: relative;
+      }
+
+      .slot.selected {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px rgba(80,215,255,0.5);
+      }
+
+      #weapon-name {
+        position: absolute;
+        bottom: 100px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(10, 15, 22, 0.55);
+        border-radius: 8px;
+        padding: 6px 12px;
+        font-size: 12px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      #center-crosshair {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 18px;
+        height: 18px;
+      }
+
+      .crosshair-line {
+        background: rgba(255,255,255,0.8);
+        position: absolute;
+      }
+
+      .crosshair-line.h { width: 18px; height: 2px; left: 0; top: 8px; }
+      .crosshair-line.v { width: 2px; height: 18px; left: 8px; top: 0; }
+
+      #kill-feed {
+        position: absolute;
+        top: 88px;
+        right: 24px;
+        width: 260px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .feed-item {
+        background: rgba(8,14,21,0.7);
+        border-radius: 8px;
+        padding: 6px 8px;
+        border-left: 3px solid var(--yellow);
+        font-size: 12px;
+      }
+
+      #alive-counter {
+        position: absolute;
+        right: 24px;
+        bottom: 24px;
+        background: rgba(8,14,21,0.7);
+        border-radius: 10px;
+        padding: 8px 12px;
+        border: 1px solid rgba(255,255,255,0.12);
+        font-size: 12px;
+      }
+
+      #minimap {
+        position: absolute;
+        left: 24px;
+        bottom: 24px;
+        width: 200px;
+        height: 200px;
+        background: rgba(10, 16, 22, 0.66);
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.12);
+        overflow: hidden;
+      }
+
+      #minimap canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      .overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(3, 10, 18, 0.4);
+        backdrop-filter: blur(3px);
+        transition: opacity 0.2s ease;
+      }
+
+      .overlay.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .menu {
+        width: min(640px, 75vw);
+        background: rgba(14, 18, 27, 0.9);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 18px;
+        padding: 26px 24px;
+        text-align: center;
+      }
+
+      .menu h1 {
+        margin: 0 0 8px;
+        font-size: clamp(2rem, 5vw, 3rem);
+      }
+
+      .menu h2 {
+        margin: 0 0 18px;
+        color: #bfe7ff;
+      }
+
+      .menu p {
+        color: #dbeeff;
+        line-height: 1.5;
+      }
+
+      .menu button {
+        margin-top: 18px;
+        background: linear-gradient(180deg, #55d2ff, #1d8fff);
+        color: white;
+        border: none;
+        border-radius: 9px;
+        padding: 12px 22px;
+        font-weight: bold;
+        cursor: pointer;
+      }
+
+      #map-screen {
+        position: absolute;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(4,10,15,0.75);
+        backdrop-filter: blur(6px);
+      }
+
+      #map-screen.visible {
+        display: flex;
+      }
+
+      #map-panel {
+        width: min(760px, 82vw);
+        height: min(620px, 72vh);
+        background: rgba(10, 17, 25, 0.9);
+        border-radius: 18px;
+        border: 1px solid rgba(255,255,255,0.12);
+        padding: 18px;
+      }
+
+      #map-panel h3 {
+        margin: 0 0 12px;
+      }
+
+      #map-canvas {
+        width: 100%;
+        height: calc(100% - 42px);
+        border-radius: 14px;
+        background: linear-gradient(180deg, rgba(59,171,196,0.25), rgba(42,100,57,0.2));
+        border: 1px solid rgba(255,255,255,0.1);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game-root"></div>
+
+    <div id="hud">
+      <div id="top-bar">
+        <div id="stats">
+          <div id="hp" class="bar-wrap">
+            <div class="bar-label"><span>HP</span><span id="hp-label">100</span></div>
+            <div class="bar"><div class="bar-fill" id="hp-fill"></div></div>
+          </div>
+
+          <div id="shield" class="bar-wrap">
+            <div class="bar-label"><span>Shield</span><span id="shield-label">100</span></div>
+            <div class="bar"><div class="bar-fill" id="shield-fill"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="action-panel">
+        <div class="panel-header">Materials</div>
+        <div id="materials">
+          <div class="material-item"><strong id="wood-count">0</strong>Wood</div>
+          <div class="material-item"><strong id="brick-count">0</strong>Brick</div>
+          <div class="material-item"><strong id="metal-count">0</strong>Metal</div>
+        </div>
+      </div>
+
+      <div id="kill-feed"></div>
+
+      <div id="alive-counter">100 alive</div>
+
+      <div id="minimap">
+        <canvas id="minimap-canvas" width="200" height="200"></canvas>
+      </div>
+
+      <div id="weapon-name">Assault Rifle</div>
+
+      <div id="inventory"></div>
+
+      <div id="center-crosshair">
+        <div class="crosshair-line h"></div>
+        <div class="crosshair-line v"></div>
+      </div>
+    </div>
+
+    <div id="lobby-overlay" class="overlay">
+      <div class="menu">
+        <h1>Fortnite-style Battle Royale</h1>
+        <h2>Playable MVP</h2>
+        <p>
+          Drop in, loot, build, survive the storm, and outlast the 99 other fighters.
+          <br />WASD move, Shift sprint, Space jump, C crouch, Q build mode, M map screen.
+        </p>
+        <button id="start-btn">Start Match</button>
+      </div>
+    </div>
+
+    <div id="match-end" class="overlay hidden">
+      <div class="menu">
+        <h2>Match Complete</h2>
+        <p id="results-text">You placed 1st.</p>
+        <button id="restart-btn">Play Again</button>
+      </div>
+    </div>
+
+    <div id="map-screen">
+      <div id="map-panel">
+        <h3>Battle Map</h3>
+        <canvas id="map-canvas" width="760" height="560"></canvas>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
